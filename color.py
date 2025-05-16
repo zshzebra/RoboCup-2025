@@ -1,39 +1,73 @@
-from enum import Enum
+from time import sleep
+import color_sensor
+from hub import port
 
 class Color:
-    r: int
-    g: int
-    b: int
-    i: int
+    r: float
+    g: float
+    b: float
+    i: float
 
-    def __init__(r: int, g: int, b: int):
-        c = Color()
-        c.r = r
-        c.g = g
-        c.b = b
-        c.i = 255
-        return c
+    def __init__(self, r: float, g: float, b: float):
+        self.r = r
+        self.g = g
+        self.b = b
+        self.i = (r + g + b) / 3
 
-# White is not a valid color
-class ColorName(Enum):
+class ColorName:
     RED = 1
     GREEN = 2
     BLACK = 3
     GRAY = 4
     BLACK = 5
 
-def match_color(color: Color, min: Color, max: Color) -> bool:
-    return color.r >= min.r and color.r <= max.r and color.g >= min.g and color.g <= max.g and color.b >= min.b and color.b <= max.b
+def calculate_percentages(r: float, g: float, b: float) -> Color:
+    total = r + g + b
+    if total == 0:
+        return Color(0, 0, 0)
+    
+    return Color(
+        (r / total) * 100,
+        (g / total) * 100,
+        (b / total) * 100
+    )
+
+def match_color(color: Color, min_percent: float, dominant_color: str) -> bool:
+    if dominant_color == 'r':
+        return color.r >= min_percent and color.r > color.g and color.r > color.b
+    elif dominant_color == 'g':
+        return color.g >= min_percent and color.g > color.r and color.g > color.b
+    elif dominant_color == 'b':
+        return color.b >= min_percent and color.b > color.r and color.b > color.g
+    return False
 
 def name_color(color: Color) -> None | ColorName:
-    if match_color(color, Color(200, 0, 0), Color(255, 50, 50)):
-        return ColorName.RED
-    elif match_color(color, Color(0, 200, 0), Color(50, 255, 50)):
-        return ColorNome.GREEN
-    elif match_color(color, Color(0, 0, 0), Color(30, 30, 30)):
+    intensity = color.i
+
+    if intensity < 10:
         return ColorName.BLACK
-    elif match_color(color, Color(30,30,30), Color(100,100,100)):
+    
+    rgb_diff = max(abs(color.r - color.g), abs(color.g - color.b), abs(color.r - color.b))
+    if rgb_diff < 15 and 10 <= intensity <= 40:
         return ColorName.GRAY
+
+    if match_color(color, 45, 'r'):
+        return ColorName.RED
+    elif match_color(color, 45, 'g'):
+        return ColorName.GREEN
 
     return None
 
+while True:
+    rgbi = color_sensor.rgbi(port.A)
+    color = calculate_percentages(rgbi[0], rgbi[1], rgbi[2])
+    
+    color_name = name_color(color)
+
+    print(color.r)
+    print(color.g)
+    print(color.b)
+    print(color.i)
+    print(color_name)
+
+    sleep(0.5)
